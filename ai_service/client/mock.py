@@ -11,10 +11,25 @@ import time
 from .base import AIServiceError, BaseClient, verify_mp4
 
 
+def find_ffmpeg():
+    """Prefer FFmpeg on PATH, then the binary bundled with `imageio-ffmpeg`."""
+    path = shutil.which('ffmpeg')
+    if path:
+        return path
+    try:
+        import imageio_ffmpeg
+    except ImportError:
+        return None
+    try:
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except RuntimeError:
+        return None
+
+
 class MockClient(BaseClient):
     def __init__(self, delay_seconds=3, ffmpeg_path=None):
         self.delay_seconds = delay_seconds
-        self.ffmpeg_path = ffmpeg_path or shutil.which('ffmpeg')
+        self.ffmpeg_path = ffmpeg_path or find_ffmpeg()
 
     def generate(self, request, output_path, on_submitted=None):
         if on_submitted:
