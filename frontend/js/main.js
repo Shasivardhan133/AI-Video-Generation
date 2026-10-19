@@ -27,8 +27,14 @@
     frameCount: document.querySelector("[data-setting='frameCount']:checked")?.value || "81",
     visualStyle: document.querySelector("[data-setting='visualStyle']:checked")?.value || "cinematic"
   };
-  const resultsSection = document.querySelector("[data-results]");
   const resultsList = document.querySelector("[data-results-list]");
+  const resultsCount = document.querySelector("[data-results-count]");
+  const resultsRefresh = document.querySelector("[data-results-refresh]");
+  const resultsState = document.querySelector("[data-results-state]");
+  const resultsStateIcon = document.querySelector("[data-results-state-icon]");
+  const resultsStateText = document.querySelector("[data-results-state-text]");
+  const resultsRetry = document.querySelector("[data-results-retry]");
+  const resultsMore = document.querySelector("[data-results-more]");
   const historyList = document.querySelector("[data-history-list]");
   const historyEmpty = document.querySelector("[data-history-empty]");
   const libraryList = document.querySelector("[data-library-list]");
@@ -92,36 +98,127 @@
 
   const formatTime = (value) => (value ? new Date(value).toLocaleString() : "");
 
+  // ---------------------------------------------------------------------------
+  // My Generations. Shows the jobs the API returns for this user or browser
+  // session; the backend enforces ownership. The list endpoint has no settings,
+  // result, or error fields, so each card is filled in from the job's detail
+  // endpoint. Until then a card shows only what the list provided.
+  // ---------------------------------------------------------------------------
+  const STATUS_INFO = {
+    queued: { label: "Queued", description: "Waiting to start" },
+    processing: { label: "Generating", description: "Video generation in progress" },
+    completed: { label: "Completed", description: "Generation finished" },
+    failed: { label: "Failed", description: "Generation failed" }
+  };
+  const PAGE_SIZE = 20;
+  const DETAIL_CONCURRENCY = 4;
+  const jobDetails = new Map();
+  let generationsPage = 0;
+  let generationsTotal = null;
+  let generationsLoading = false;
+  let reloadRequested = false;
+
+  // Converts a list item into the detail shape, keeping missing fields missing.
+  const fromListItem = (item) => ({
+    job_id: item.job_id,
+    mode: item.mode,
+    status: item.status,
+    prompt: item.prompt_preview,
+    created_at: item.created_at,
+    completed_at: item.completed_at,
+    video_available: item.video_available === true
+  });
+
+  const statusInfo = (status) => STATUS_INFO[status] || { label: "Unknown", description: "Status not recognised" };
+
+  const describeSettings = (settings) => {
+    if (!settings || !settings.width || !settings.height) {
+      return "";
+    }
+    const parts = [`${settings.width}×${settings.height}`];
+    if (settings.frame_count && settings.fps) {
+      parts.push(`${(settings.frame_count / settings.fps).toFixed(1)} s (${settings.frame_count} frames)`);
+    }
+    return parts.join(" · ");
+  };
+
+  const updateResultsCount = () => {
+    if (resultsCount) {
+      resultsCount.textContent = generationsTotal ? `${generationsTotal}` : "";
+      resultsCount.hidden = !generationsTotal;
+    }
+  };
+
+  // Shows the loading, empty, or error message, or hides it when cards are shown.
+  const setResultsState = (kind, message = "") => {
+    if (!resultsState) {
+      return;
+    }
+    const states = {
+      loading: { icon: "◷", text: "Loading your generations…" },
+      empty: { icon: "▶", text: "No generations yet. Describe a video above to create your first one." },
+      error: { icon: "!", text: message || "Could not load your generations." }
+    };
+    const state = states[kind];
+    resultsState.hidden = !state;
+    resultsState.className = `results-state${state ? ` is-${kind}` : ""}`;
+    if (state) {
+      resultsStateIcon.textContent = state.icon;
+      resultsStateText.textContent = state.text;
+    }
+    if (resultsRetry) {
+      resultsRetry.hidden = kind !== "error";
+    }
+    resultsList?.setAttribute("aria-busy", kind === "loading" ? "true" : "false");
+  };
+
   const renderJobCard = (job) => {
+    if (!job || !job.job_id) {
+      return; // Ignore malformed entries rather than rendering a broken card.
+    }
     let card = cards.get(job.job_id);
     if (!card) {
       card = document.createElement("article");
       card.className = "job-card";
+      card.setAttribute("role", "listitem");
       cards.set(job.job_id, card);
       resultsList?.prepend(card);
-    }
-    if (resultsSection) {
-      resultsSection.hidden = false;
+      setResultsState(null);
     }
 
     const header = document.createElement("div");
     header.className = "job-card-header";
     const copy = document.createElement("div");
+    copy.className = "job-copy";
     const promptLine = document.createElement("p");
     promptLine.className = "job-prompt";
     promptLine.textContent = job.prompt || (job.mode === "image_to_video" ? "Animate the uploaded image" : "Untitled");
-    const meta = document.createElement("p");
-    meta.className = "job-meta";
-    const size = job.settings ? ` · ${job.settings.width}×${job.settings.height} · ${job.settings.frame_count} frames` : "";
-    meta.textContent = `${MODE_LABELS[job.mode] || job.mode}${size} · ${formatTime(job.created_at)}`;
-    copy.append(promptLine, meta);
+    copy.append(promptLine);
+    const summary = [MODE_LABELS[job.mode], formatTime(job.created_at)].filter(Boolean).join(" · ");
+    if (summary) {
+      const meta = document.createElement("p");
+      meta.className = "job-meta";
+      meta.textContent = summary;
+      copy.append(meta);
+    }
+    const details = describeSettings(job.settings);
+    if (details) {
+      const detailLine = document.createElement("p");
+      detailLine.className = "job-meta";
+      detailLine.textContent = details;
+      copy.append(detailLine);
+    }
+    const info = statusInfo(job.status);
     const badge = document.createElement("span");
-    badge.className = `job-status is-${job.status}`;
-    badge.textContent = job.status;
+    badge.className = `job-status is-${STATUS_INFO[job.status] ? job.status : "unknown"}`;
+    badge.textContent = info.label;
+    badge.title = info.description;
     header.append(copy, badge);
 
     const children = [header];
-    if (job.status === "completed" && job.result) {
+    // Preview is offered only when the backend reports a completed job with a video.
+    const hasVideo = job.status === "completed" && (Boolean(job.result?.preview_url) || job.video_available === true);
+    if (hasVideo) {
       const actions = document.createElement("div");
       actions.className = "job-actions";
       const previewButton = document.createElement("button");
@@ -129,27 +226,66 @@
       previewButton.type = "button";
       previewButton.textContent = "▶ Preview";
       previewButton.setAttribute("aria-controls", "video-preview");
-      previewButton.addEventListener("click", () => selectPreview(job.job_id, job, { focus: true }));
+      previewButton.setAttribute("aria-label", `Preview video: ${promptLine.textContent}`);
+      previewButton.addEventListener("click", () => {
+        selectPreview(job.job_id, jobDetails.get(job.job_id) || null, { focus: true });
+      });
       actions.append(previewButton);
-      if (job.result.is_mock) {
+      if (job.result?.is_mock) {
         const mockTag = document.createElement("span");
         mockTag.className = "job-mock-tag";
         mockTag.textContent = "Mock test video";
         actions.append(mockTag);
       }
       children.push(actions);
-    } else if (job.status === "failed" && job.error) {
+    } else if (job.status === "completed") {
+      const note = document.createElement("p");
+      note.className = "job-note";
+      note.textContent = "The video file is not available.";
+      children.push(note);
+    } else if (job.status === "failed") {
       const error = document.createElement("p");
       error.className = "job-error";
-      error.textContent = `${job.error.message} (ref ${job.error.request_id || "n/a"})`;
+      error.textContent = job.error?.message
+        ? `${job.error.message}${job.error.request_id ? ` (ref ${job.error.request_id})` : ""}`
+        : "Generation failed.";
       children.push(error);
     }
     // Only rebuild the card when something visible changed.
-    const signature = `${job.status}:${job.result?.preview_url || ""}`;
+    const signature = JSON.stringify([
+      job.status, job.prompt, details, job.result?.preview_url, job.result?.is_mock, job.error?.message, job.video_available
+    ]);
     if (card.dataset.signature !== signature) {
       card.dataset.signature = signature;
       card.replaceChildren(...children);
     }
+  };
+
+  // Stores a job's detail response and redraws its card.
+  const applyJobDetail = (job) => {
+    if (job?.job_id) {
+      jobDetails.set(job.job_id, job);
+      renderJobCard(job);
+    }
+  };
+
+  // Fetches details for cards that lack them or whose status has changed.
+  const enrichJobs = async (items) => {
+    const queue = items.filter((item) => {
+      const known = jobDetails.get(item.job_id);
+      return !known || known.status !== item.status;
+    });
+    const worker = async () => {
+      while (queue.length) {
+        const item = queue.shift();
+        try {
+          applyJobDetail(await apiRequest(`/generations/${item.job_id}/`));
+        } catch (error) {
+          // Keep the list-only card; the details are optional.
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(DETAIL_CONCURRENCY, queue.length) }, worker));
   };
 
   const pollJob = (jobId) => {
@@ -159,7 +295,7 @@
     const tick = async () => {
       try {
         const job = await apiRequest(`/generations/${jobId}/`);
-        renderJobCard(job);
+        applyJobDetail(job);
         if (jobId === previewJobId) {
           renderPreview(job);
         }
@@ -210,19 +346,51 @@
     return button;
   };
 
+  // Loads the first page of jobs for the sidebar lists and My Generations.
   const loadHistory = async () => {
+    if (generationsLoading) {
+      reloadRequested = true; // Run again once the current load finishes.
+      return;
+    }
+    generationsLoading = true;
+    if (!cards.size) {
+      setResultsState("loading");
+    }
+    resultsRefresh?.setAttribute("aria-busy", "true");
     try {
-      const page = await apiRequest("/generations/?page_size=30");
-      const items = page.results || [];
+      const page = await apiRequest(`/generations/?page_size=${PAGE_SIZE}`);
+      const items = (Array.isArray(page?.results) ? page.results : []).filter((item) => item && item.job_id);
       historyList?.replaceChildren(...items.map(historyButton));
       if (historyEmpty) {
         historyEmpty.hidden = items.length > 0;
+        historyEmpty.textContent = "Your generations in this browser session appear here.";
       }
       const finished = items.filter((item) => item.video_available);
       libraryList?.replaceChildren(...finished.map(historyButton));
       if (libraryEmpty) {
         libraryEmpty.hidden = finished.length > 0;
       }
+
+      // My Generations: newest first. Keep cards already loaded from later pages.
+      generationsTotal = Number.isFinite(page?.count) ? page.count : items.length;
+      generationsPage = Math.max(generationsPage, 1);
+      items.forEach((item) => {
+        const known = jobDetails.get(item.job_id);
+        renderJobCard(known && known.status === item.status ? known : fromListItem(item));
+      });
+      const firstPageIds = new Set(items.map((item) => item.job_id));
+      const ordered = [
+        ...items.map((item) => cards.get(item.job_id)),
+        ...[...cards.entries()].filter(([id]) => !firstPageIds.has(id)).map(([, card]) => card)
+      ].filter(Boolean);
+      resultsList?.replaceChildren(...ordered);
+      updateResultsCount();
+      setResultsState(cards.size ? null : "empty");
+      if (resultsMore) {
+        resultsMore.hidden = !page?.next || cards.size >= generationsTotal;
+      }
+      enrichJobs(items);
+
       // Resume tracking of jobs that were still running when the page loaded.
       items
         .filter((item) => item.status === "queued" || item.status === "processing")
@@ -232,8 +400,59 @@
         historyEmpty.hidden = false;
         historyEmpty.textContent = error.message;
       }
+      setResultsState("error", cards.size
+        ? `Could not refresh: ${error.message}`
+        : `Could not load your generations. ${error.message}`);
+    } finally {
+      generationsLoading = false;
+      resultsRefresh?.removeAttribute("aria-busy");
+      if (reloadRequested) {
+        reloadRequested = false;
+        loadHistory();
+      }
     }
   };
+
+  const loadMoreGenerations = async () => {
+    if (!resultsMore || generationsLoading) {
+      return;
+    }
+    generationsLoading = true;
+    resultsMore.disabled = true;
+    resultsMore.textContent = "Loading…";
+    try {
+      const nextPage = generationsPage + 1;
+      const page = await apiRequest(`/generations/?page_size=${PAGE_SIZE}&page=${nextPage}`);
+      const items = (Array.isArray(page?.results) ? page.results : []).filter((item) => item && item.job_id);
+      items.forEach((item) => {
+        const isNew = !cards.has(item.job_id);
+        const known = jobDetails.get(item.job_id);
+        renderJobCard(known && known.status === item.status ? known : fromListItem(item));
+        if (isNew) {
+          resultsList?.append(cards.get(item.job_id)); // Older jobs go at the end.
+        }
+      });
+      generationsPage = nextPage;
+      generationsTotal = Number.isFinite(page?.count) ? page.count : generationsTotal;
+      updateResultsCount();
+      resultsMore.hidden = !page?.next;
+      enrichJobs(items);
+    } catch (error) {
+      setResultsState("error", `Could not load more: ${error.message}`);
+    } finally {
+      generationsLoading = false;
+      resultsMore.disabled = false;
+      resultsMore.textContent = "Load more";
+      if (reloadRequested) {
+        reloadRequested = false;
+        loadHistory();
+      }
+    }
+  };
+
+  resultsRetry?.addEventListener("click", loadHistory);
+  resultsRefresh?.addEventListener("click", loadHistory);
+  resultsMore?.addEventListener("click", loadMoreGenerations);
 
   const submitGeneration = async (promptText) => {
     const file = imageInput?.files?.[0];

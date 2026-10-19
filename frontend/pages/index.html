@@ -239,9 +239,22 @@
             </div>
           </section>
 
-          <section class="results" aria-label="Generated videos" aria-live="polite" data-results hidden>
-            <h2 class="results-heading">Your generations</h2>
-            <div class="results-list" data-results-list></div>
+          <section class="results" id="my-generations" aria-labelledby="my-generations-heading" data-results>
+            <div class="results-header">
+              <h2 class="results-heading" id="my-generations-heading">My Generations</h2>
+              <span class="results-count" data-results-count hidden></span>
+              <button class="results-refresh" type="button" aria-label="Refresh My Generations" data-results-refresh>
+                <span aria-hidden="true">↻</span>
+                <span>Refresh</span>
+              </button>
+            </div>
+            <div class="results-state" role="status" aria-live="polite" data-results-state>
+              <span class="results-state-icon" aria-hidden="true" data-results-state-icon>◷</span>
+              <p class="results-state-text" data-results-state-text>Loading your generations…</p>
+              <button class="results-retry" type="button" data-results-retry hidden>Retry</button>
+            </div>
+            <div class="results-list" role="list" aria-labelledby="my-generations-heading" data-results-list></div>
+            <button class="results-more" type="button" data-results-more hidden>Load more</button>
           </section>
         </div>
       </section>
