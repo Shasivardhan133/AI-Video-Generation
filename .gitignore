@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Django/local development
+db.sqlite3
+staticfiles/
+
+# Generated and potentially large media
+media/inputs/*
+media/outputs/*
+!media/inputs/.gitkeep
+!media/outputs/.gitkeep
+*.mp4
+*.webm
+*.mov
+*.avi
+*.mkv
+
+# Model artifacts and notebooks outputs
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+.ipynb_checkpoints/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+

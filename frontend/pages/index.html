@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Geetha — controllable AI video generation from text and image prompts.">
+  <title>Geetha</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="../js/main.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+    <aside class="sidebar" id="sidebar" aria-label="Geetha workspace navigation">
+      <div class="sidebar-top">
+        <a class="brand" href="#home" aria-label="Geetha home">
+          <span class="brand-mark" aria-hidden="true">G</span>
+          <span class="brand-name">Geetha</span>
+        </a>
+        <button class="sidebar-close" type="button" aria-label="Close navigation" data-sidebar-close>
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <button class="new-video-button" type="button" data-new-video>
+        <span class="new-video-icon" aria-hidden="true">✎</span>
+        <span>New Chat</span>
+      </button>
+
+      <nav class="sidebar-nav" aria-label="Workspace navigation">
+        <button class="sidebar-link" type="button" aria-expanded="false" aria-controls="library-panel" data-panel-toggle="library-panel">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Library</span>
+        </button>
+        <button class="sidebar-link" type="button" aria-expanded="false" aria-controls="explore-panel" data-panel-toggle="explore-panel">
+          <span class="nav-icon" aria-hidden="true">✦</span>
+          <span>Explore</span>
+        </button>
+        <button class="sidebar-link" type="button" aria-expanded="false" aria-controls="recent-chats-panel" data-panel-toggle="recent-chats-panel">
+          <span class="nav-icon" aria-hidden="true">◷</span>
+          <span>Recent Chats</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-panels">
+        <section class="sidebar-panel" id="library-panel" aria-labelledby="library-panel-heading" hidden>
+          <h2 id="library-panel-heading">Library</h2>
+          <p class="panel-note" data-library-empty>No finished videos yet.</p>
+          <div class="recent-list" data-library-list></div>
+        </section>
+        <section class="sidebar-panel" id="explore-panel" aria-labelledby="explore-panel-heading" hidden>
+          <h2 id="explore-panel-heading">Explore prompts</h2>
+          <button type="button" data-panel-suggestion="A cinematic aerial shot of a peaceful mountain lake at sunrise, with soft mist and natural lighting.">Cinematic scene</button>
+          <button type="button" data-panel-suggestion="Animate the uploaded photo with subtle natural movement and a slow cinematic camera motion.">Animate a photo</button>
+          <button type="button" data-panel-suggestion="A futuristic city at night with glowing blue lights, cinematic camera movement, and atmospheric rain.">Explore video styles</button>
+        </section>
+        <section class="sidebar-panel" id="recent-chats-panel" aria-labelledby="recent-chats-heading" hidden>
+          <h2 id="recent-chats-heading">Recent Chats</h2>
+          <p class="panel-note" data-history-empty>Your generations in this browser session appear here.</p>
+          <div class="recent-list" data-history-list></div>
+        </section>
+      </div>
+
+      <div class="profile-area">
+        <button class="profile-button" type="button" aria-describedby="profile-note">
+          <span class="profile-avatar" aria-hidden="true">G</span>
+          <span class="profile-copy">
+            <span class="profile-name">Guest creator</span>
+            <span class="profile-status" id="profile-note">Demo workspace</span>
+          </span>
+          <span class="profile-more" aria-hidden="true">•••</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="workspace" id="home">
+      <header class="mobile-header">
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Open navigation menu" data-sidebar-toggle>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+        <a class="mobile-brand brand" href="#home" aria-label="Geetha home">
+          <span class="brand-mark" aria-hidden="true">G</span>
+          <span class="brand-name">Geetha</span>
+        </a>
+      </header>
+
+      <section class="creator-area" aria-labelledby="creator-heading">
+        <div class="creator-content">
+          <p class="eyebrow">AI video studio</p>
+          <h1 id="creator-heading">What do you want to learn today?</h1>
+          <p class="creator-subtitle">Turn an idea or a source image into a video concept.</p>
+
+          <form class="composer-form" data-composer-form>
+            <div class="composer">
+              <label class="sr-only" for="prompt">Describe the video you want to create</label>
+              <button class="composer-plus" type="button" aria-label="Add an image" title="Add an image" data-composer-plus>
+                <span aria-hidden="true">+</span>
+              </button>
+              <textarea id="prompt" name="prompt" rows="1" placeholder="Describe the video you want to create..." aria-describedby="prompt-message" data-prompt></textarea>
+              <div class="composer-tools">
+                <div class="upload-area">
+                  <input class="sr-only" id="image-upload" type="file" accept="image/png,image/jpeg,image/webp" data-image-input>
+                  <label class="icon-button" for="image-upload" aria-label="Geetha image upload" title="Geetha image upload">
+                    <span aria-hidden="true">▧</span>
+                  </label>
+                  <span class="upload-hint">Geetha</span>
+                </div>
+              </div>
+              <button class="generate-button" type="submit" aria-label="Create video demo" title="Create video demo">
+                <span aria-hidden="true">↑</span>
+              </button>
+              <div class="image-preview" data-image-preview hidden>
+                <img src="" alt="Selected source image preview" data-preview-image>
+                <span class="preview-name" data-preview-name></span>
+                <button class="remove-image" type="button" aria-label="Remove selected image" data-remove-image>&times;</button>
+              </div>
+            </div>
+            <p class="form-message" id="prompt-message" role="status" aria-live="polite" data-form-message></p>
+          </form>
+
+          <div class="creator-tools" aria-label="Additional creation tools">
+            <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="generation-settings" aria-label="Show generation settings" data-secondary-toggle="generation-settings">
+              <span aria-hidden="true">⚙</span>
+              <span>Settings</span>
+            </button>
+            <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="prompt-suggestions" aria-label="Show prompt suggestions" data-secondary-toggle="prompt-suggestions">
+              <span aria-hidden="true">✦</span>
+              <span>Explore</span>
+            </button>
+          </div>
+
+          <section class="settings-panel" id="generation-settings" aria-label="Generation settings" hidden>
+            <fieldset class="setting-group">
+              <legend>Aspect ratio</legend>
+              <div class="setting-options">
+                <label class="setting-option">
+                  <input type="radio" name="aspect-ratio" value="landscape" checked data-setting="aspectRatio">
+                  <span>16:9 <small>Landscape</small></span>
+                </label>
+                <label class="setting-option">
+                  <input type="radio" name="aspect-ratio" value="portrait" data-setting="aspectRatio">
+                  <span>9:16 <small>Portrait</small></span>
+                </label>
+              </div>
+              <p class="setting-note">480p output (832&times;480 or 480&times;832), the size Wan 2.1 1.3B supports.</p>
+            </fieldset>
+            <fieldset class="setting-group">
+              <legend>Length</legend>
+              <div class="setting-options">
+                <label class="setting-option">
+                  <input type="radio" name="length" value="33" data-setting="frameCount">
+                  <span>2s <small>33 frames</small></span>
+                </label>
+                <label class="setting-option">
+                  <input type="radio" name="length" value="49" data-setting="frameCount">
+                  <span>3s <small>49 frames</small></span>
+                </label>
+                <label class="setting-option">
+                  <input type="radio" name="length" value="81" checked data-setting="frameCount">
+                  <span>5s <small>81 frames</small></span>
+                </label>
+              </div>
+            </fieldset>
+            <fieldset class="setting-group">
+              <legend>Visual style</legend>
+              <div class="setting-options">
+                <label class="setting-option">
+                  <input type="radio" name="visual-style" value="cinematic" checked data-setting="visualStyle">
+                  <span>Cinematic</span>
+                </label>
+                <label class="setting-option">
+                  <input type="radio" name="visual-style" value="realistic" data-setting="visualStyle">
+                  <span>Realistic</span>
+                </label>
+                <label class="setting-option">
+                  <input type="radio" name="visual-style" value="anime" data-setting="visualStyle">
+                  <span>Anime</span>
+                </label>
+                <label class="setting-option">
+                  <input type="radio" name="visual-style" value="3d_animation" data-setting="visualStyle">
+                  <span>3D Animation</span>
+                </label>
+              </div>
+            </fieldset>
+          </section>
+
+          <div class="suggestions" id="prompt-suggestions" aria-label="Prompt suggestions" hidden>
+            <button class="suggestion-card" type="button" data-suggestion="A cinematic aerial shot of a peaceful mountain lake at sunrise, with soft mist and natural lighting.">
+              <span class="suggestion-icon" aria-hidden="true">✦</span>
+              <span>Create a cinematic scene</span>
+              <span class="suggestion-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button class="suggestion-card" type="button" data-suggestion="Animate the uploaded photo with subtle natural movement and a slow cinematic camera motion.">
+              <span class="suggestion-icon" aria-hidden="true">▧</span>
+              <span>Animate a photo</span>
+              <span class="suggestion-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button class="suggestion-card" type="button" data-suggestion="A futuristic city at night with glowing blue lights, cinematic camera movement, and atmospheric rain.">
+              <span class="suggestion-icon" aria-hidden="true">◈</span>
+              <span>Explore video styles</span>
+              <span class="suggestion-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+
+          <section class="results" aria-label="Generated videos" aria-live="polite" data-results hidden>
+            <h2 class="results-heading">Your generations</h2>
+            <div class="results-list" data-results-list></div>
+          </section>
+        </div>
+      </section>
+
+      <span class="future-section-anchor" id="explore" aria-hidden="true"></span>
+    </main>
+  </div>
+</body>
+</html>
