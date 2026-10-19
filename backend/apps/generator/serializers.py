@@ -145,7 +145,12 @@ class JobSerializer(serializers.ModelSerializer):
         if not job.video_available:
             return None
         video_url = job_urls(job, self.context.get('request'))['video_url']
-        return {'preview_url': video_url, 'download_url': f'{video_url}?download=1'}
+        return {
+            'preview_url': video_url,
+            'download_url': f'{video_url}?download=1',
+            # The mock client tags its jobs 'mock-<id>'; its output is a test pattern, not AI video.
+            'is_mock': job.remote_job_id.startswith('mock-'),
+        }
 
     def get_error(self, job):
         if job.status != GenerationJob.Status.FAILED:

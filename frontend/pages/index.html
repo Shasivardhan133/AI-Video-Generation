@@ -129,6 +129,10 @@
               <span aria-hidden="true">✦</span>
               <span>Explore</span>
             </button>
+            <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="video-preview" aria-label="Show video preview" data-preview-toggle>
+              <span aria-hidden="true">▶</span>
+              <span>Video Preview</span>
+            </button>
           </div>
 
           <section class="settings-panel" id="generation-settings" aria-label="Generation settings" hidden>
@@ -203,6 +207,37 @@
               <span class="suggestion-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
+
+          <section class="preview-panel" id="video-preview" aria-labelledby="video-preview-heading" data-preview-panel hidden>
+            <div class="preview-header">
+              <h2 class="preview-title" id="video-preview-heading" tabindex="-1">Video Preview</h2>
+              <span class="preview-status is-empty" role="status" aria-live="polite" data-preview-status>No video</span>
+              <button class="preview-close" type="button" aria-label="Close video preview" data-preview-close>
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <p class="preview-mock-notice" data-preview-mock hidden>
+              <strong>Mock test video.</strong> This is a synthetic FFmpeg test pattern from the local mock service, not an AI-generated result.
+            </p>
+            <div class="preview-stage" data-preview-stage>
+              <div class="preview-state" data-preview-state>
+                <span class="preview-state-icon" aria-hidden="true" data-preview-state-icon>▶</span>
+                <h3 class="preview-state-heading" data-preview-state-heading>No video to preview yet</h3>
+                <p class="preview-state-text" data-preview-state-text>Your generated video will appear here when a generation finishes.</p>
+                <button class="preview-retry" type="button" data-preview-retry hidden>Try again</button>
+              </div>
+              <video class="preview-video" controls playsinline preload="metadata" data-preview-video hidden>
+                Your browser cannot play this video.
+              </video>
+            </div>
+            <p class="preview-caption" data-preview-caption hidden></p>
+            <div class="preview-actions" data-preview-actions hidden>
+              <a class="preview-download" href="#" download data-preview-download>
+                <span aria-hidden="true">↓</span>
+                <span>Download MP4</span>
+              </a>
+            </div>
+          </section>
 
           <section class="results" aria-label="Generated videos" aria-live="polite" data-results hidden>
             <h2 class="results-heading">Your generations</h2>

@@ -34,6 +34,21 @@
   const libraryList = document.querySelector("[data-library-list]");
   const libraryEmpty = document.querySelector("[data-library-empty]");
   const submitButton = document.querySelector(".generate-button");
+  const previewToggle = document.querySelector("[data-preview-toggle]");
+  const previewPanel = document.querySelector("[data-preview-panel]");
+  const previewHeading = document.getElementById("video-preview-heading");
+  const previewStatus = document.querySelector("[data-preview-status]");
+  const previewClose = document.querySelector("[data-preview-close]");
+  const previewMock = document.querySelector("[data-preview-mock]");
+  const previewState = document.querySelector("[data-preview-state]");
+  const previewStateIcon = document.querySelector("[data-preview-state-icon]");
+  const previewStateHeading = document.querySelector("[data-preview-state-heading]");
+  const previewStateText = document.querySelector("[data-preview-state-text]");
+  const previewRetry = document.querySelector("[data-preview-retry]");
+  const previewVideo = document.querySelector("[data-preview-video]");
+  const previewCaption = document.querySelector("[data-preview-caption]");
+  const previewActions = document.querySelector("[data-preview-actions]");
+  const previewDownload = document.querySelector("[data-preview-download]");
 
   // ---------------------------------------------------------------------------
   // API adapter for the Django backend (/api/v1/). The page is served by Django,
@@ -107,27 +122,29 @@
 
     const children = [header];
     if (job.status === "completed" && job.result) {
-      const video = document.createElement("video");
-      video.className = "job-video";
-      video.controls = true;
-      video.loop = true;
-      video.preload = "metadata";
-      video.src = job.result.preview_url;
       const actions = document.createElement("div");
       actions.className = "job-actions";
-      const download = document.createElement("a");
-      download.className = "job-download";
-      download.href = job.result.download_url;
-      download.textContent = "Download MP4";
-      actions.append(download);
-      children.push(video, actions);
+      const previewButton = document.createElement("button");
+      previewButton.className = "job-preview-button";
+      previewButton.type = "button";
+      previewButton.textContent = "▶ Preview";
+      previewButton.setAttribute("aria-controls", "video-preview");
+      previewButton.addEventListener("click", () => selectPreview(job.job_id, job, { focus: true }));
+      actions.append(previewButton);
+      if (job.result.is_mock) {
+        const mockTag = document.createElement("span");
+        mockTag.className = "job-mock-tag";
+        mockTag.textContent = "Mock test video";
+        actions.append(mockTag);
+      }
+      children.push(actions);
     } else if (job.status === "failed" && job.error) {
       const error = document.createElement("p");
       error.className = "job-error";
       error.textContent = `${job.error.message} (ref ${job.error.request_id || "n/a"})`;
       children.push(error);
     }
-    // Avoid reloading the video element on every unchanged poll.
+    // Only rebuild the card when something visible changed.
     const signature = `${job.status}:${job.result?.preview_url || ""}`;
     if (card.dataset.signature !== signature) {
       card.dataset.signature = signature;
@@ -143,6 +160,9 @@
       try {
         const job = await apiRequest(`/generations/${jobId}/`);
         renderJobCard(job);
+        if (jobId === previewJobId) {
+          renderPreview(job);
+        }
         if (job.status === "completed" || job.status === "failed") {
           clearInterval(pollers.get(jobId));
           pollers.delete(jobId);
@@ -150,6 +170,15 @@
         }
       } catch (error) {
         // Keep polling; a transient network error should not lose the job.
+        if (jobId === previewJobId && !previewVideoUrl) {
+          setPreviewState({
+            status: "Connection problem",
+            tone: "failed",
+            icon: "!",
+            heading: "Unable to load this video",
+            text: error.message
+          });
+        }
       }
     };
     pollers.set(jobId, setInterval(tick, POLL_INTERVAL_MS));
@@ -175,9 +204,8 @@
     copy.append(title, meta);
     button.append(icon, copy);
     button.addEventListener("click", () => {
-      pollJob(item.job_id);
       closeSidebar();
-      resultsSection?.scrollIntoView({ behavior: "smooth" });
+      selectPreview(item.job_id, null, { focus: true });
     });
     return button;
   };
@@ -230,6 +258,301 @@
     return apiRequest(path, options);
   };
 
+  // ---------------------------------------------------------------------------
+  // Video Preview panel. A non-modal panel with one native <video> player. It
+  // only receives URLs that the API returned for a completed job; nothing is
+  // invented, and there is no autoplay.
+  // ---------------------------------------------------------------------------
+  let previewJobId = null;
+  let previewVideoUrl = null;
+  let previewDownloadUrl = null;
+  let previewDownloadName = "geetha-video.mp4";
+  let previewIsMock = false;
+
+  const EMPTY_PREVIEW = {
+    status: "No video",
+    tone: "empty",
+    icon: "▶",
+    heading: "No video to preview yet",
+    text: "Your generated video will appear here when a generation finishes."
+  };
+
+  const isPreviewOpen = () => Boolean(previewPanel && !previewPanel.hidden);
+
+  const setPreviewStatus = (label, tone) => {
+    if (previewStatus) {
+      previewStatus.textContent = label;
+      previewStatus.className = `preview-status is-${tone}`;
+    }
+  };
+
+  const hideVideoAndDownload = () => {
+    if (previewVideo) {
+      previewVideo.pause();
+      previewVideo.hidden = true;
+    }
+    if (previewActions) {
+      previewActions.hidden = true;
+    }
+    if (previewDownload) {
+      previewDownload.removeAttribute("href");
+    }
+  };
+
+  // Shows a message instead of the player (empty, waiting, or error states).
+  const setPreviewState = ({ status, tone, icon, heading, text, retry = false, busy = false }) => {
+    hideVideoAndDownload();
+    setPreviewStatus(status, tone);
+    if (previewState) {
+      previewState.hidden = false;
+      previewState.classList.toggle("is-busy", busy);
+    }
+    if (previewStateIcon) {
+      previewStateIcon.textContent = icon;
+    }
+    if (previewStateHeading) {
+      previewStateHeading.textContent = heading;
+    }
+    if (previewStateText) {
+      previewStateText.textContent = text;
+    }
+    if (previewRetry) {
+      previewRetry.hidden = !retry;
+    }
+  };
+
+  const unloadPreviewVideo = () => {
+    previewVideoUrl = null;
+    previewDownloadUrl = null;
+    previewIsMock = false;
+    if (previewVideo) {
+      previewVideo.pause();
+      previewVideo.removeAttribute("src");
+      previewVideo.load();
+    }
+  };
+
+  const setPreviewCaption = (job) => {
+    if (!previewCaption) {
+      return;
+    }
+    if (!job) {
+      previewCaption.hidden = true;
+      previewCaption.textContent = "";
+      return;
+    }
+    const promptText = job.prompt || (job.mode === "image_to_video" ? "Animate the uploaded image" : "Untitled");
+    const size = job.settings ? ` · ${job.settings.width}×${job.settings.height} · ${job.settings.frame_count} frames` : "";
+    previewCaption.textContent = `${promptText} — ${MODE_LABELS[job.mode] || job.mode}${size}`;
+    previewCaption.hidden = false;
+  };
+
+  const resetPreview = () => {
+    previewJobId = null;
+    unloadPreviewVideo();
+    setPreviewCaption(null);
+    if (previewMock) {
+      previewMock.hidden = true;
+    }
+    setPreviewState(EMPTY_PREVIEW);
+  };
+
+  // Updates the panel from a job object returned by GET /generations/{id}/.
+  const renderPreview = (job) => {
+    setPreviewCaption(job);
+    const isMock = Boolean(job.result?.is_mock);
+    if (previewMock) {
+      previewMock.hidden = !isMock;
+    }
+
+    if (job.status === "queued" || job.status === "processing") {
+      unloadPreviewVideo();
+      setPreviewState({
+        status: job.status === "queued" ? "Queued" : "Generating",
+        tone: "busy",
+        icon: "◷",
+        heading: job.status === "queued" ? "Waiting in the queue" : "Generating your video",
+        text: "The preview will load automatically when the video is ready.",
+        busy: true
+      });
+      return;
+    }
+
+    if (job.status === "failed") {
+      unloadPreviewVideo();
+      const reference = job.error?.request_id ? ` (ref ${job.error.request_id})` : "";
+      setPreviewState({
+        status: "Failed",
+        tone: "failed",
+        icon: "!",
+        heading: "This generation failed",
+        text: `${job.error?.message || "The video could not be generated."}${reference}`
+      });
+      return;
+    }
+
+    const videoUrl = job.status === "completed" ? job.result?.preview_url : null;
+    if (!videoUrl) {
+      unloadPreviewVideo();
+      setPreviewState(EMPTY_PREVIEW);
+      return;
+    }
+
+    // Download is offered only when the API supplied a download URL for this job,
+    // and only once the video has actually loaded (see showLoadedVideo).
+    previewDownloadUrl = job.result.download_url || null;
+    previewIsMock = isMock;
+    previewDownloadName = `geetha-${isMock ? "mock-" : ""}${job.job_id}.mp4`;
+
+    if (videoUrl === previewVideoUrl) {
+      return; // Already loaded; avoid restarting playback on repeated polls.
+    }
+    previewVideoUrl = videoUrl;
+    setPreviewState({
+      status: "Loading",
+      tone: "busy",
+      icon: "◷",
+      heading: "Loading video…",
+      text: "Fetching the video from the server.",
+      busy: true
+    });
+    if (previewVideo) {
+      previewVideo.src = videoUrl;
+      previewVideo.load();
+    }
+  };
+
+  const showLoadedVideo = () => {
+    if (!previewVideoUrl || !previewVideo) {
+      return;
+    }
+    if (previewState) {
+      previewState.hidden = true;
+    }
+    previewVideo.hidden = false;
+    setPreviewStatus(previewIsMock ? "Mock video ready" : "Video ready", "ready");
+    if (previewActions && previewDownload && previewDownloadUrl) {
+      previewDownload.href = previewDownloadUrl;
+      previewDownload.setAttribute("download", previewDownloadName);
+      previewActions.hidden = false;
+    }
+  };
+
+  const showVideoLoadError = () => {
+    if (!previewVideoUrl) {
+      return; // Errors from clearing the source are expected.
+    }
+    setPreviewState({
+      status: "Error",
+      tone: "failed",
+      icon: "!",
+      heading: "Unable to load this video",
+      text: "The file could not be played. It may have been removed, or the connection was interrupted.",
+      retry: true
+    });
+  };
+
+  const openPreview = ({ focus = false } = {}) => {
+    if (!previewPanel) {
+      return;
+    }
+    previewPanel.hidden = false;
+    previewToggle?.setAttribute("aria-expanded", "true");
+    previewToggle?.setAttribute("aria-label", "Hide video preview");
+    previewToggle?.classList.add("is-active");
+    if (focus) {
+      previewHeading?.focus();
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      previewPanel.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    }
+  };
+
+  const closePreview = ({ returnFocus = false } = {}) => {
+    if (!previewPanel) {
+      return;
+    }
+    previewVideo?.pause();
+    previewPanel.hidden = true;
+    previewToggle?.setAttribute("aria-expanded", "false");
+    previewToggle?.setAttribute("aria-label", "Show video preview");
+    previewToggle?.classList.remove("is-active");
+    if (returnFocus) {
+      previewToggle?.focus();
+    }
+  };
+
+  // Points the preview at a job and keeps it updated until it finishes.
+  const selectPreview = (jobId, job, options = {}) => {
+    if (jobId !== previewJobId) {
+      unloadPreviewVideo();
+    }
+    previewJobId = jobId;
+    if (job) {
+      renderPreview(job);
+    } else {
+      setPreviewCaption(null);
+      setPreviewState({
+        status: "Loading",
+        tone: "busy",
+        icon: "◷",
+        heading: "Loading video…",
+        text: "Checking this generation's status.",
+        busy: true
+      });
+    }
+    openPreview(options);
+    pollJob(jobId);
+  };
+
+  if (previewToggle) {
+    previewToggle.addEventListener("click", () => {
+      if (isPreviewOpen()) {
+        closePreview();
+      } else {
+        openPreview();
+      }
+    });
+  }
+
+  if (previewClose) {
+    previewClose.addEventListener("click", () => closePreview({ returnFocus: true }));
+  }
+
+  if (previewPanel) {
+    // Non-modal panel: Escape closes it only while focus is inside it.
+    previewPanel.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closePreview({ returnFocus: true });
+      }
+    });
+  }
+
+  if (previewRetry) {
+    previewRetry.addEventListener("click", () => {
+      const url = previewVideoUrl;
+      if (url && previewVideo) {
+        setPreviewState({
+          status: "Loading",
+          tone: "busy",
+          icon: "◷",
+          heading: "Loading video…",
+          text: "Trying again.",
+          busy: true
+        });
+        previewVideo.src = url;
+        previewVideo.load();
+      }
+    });
+  }
+
+  if (previewVideo) {
+    previewVideo.addEventListener("loadeddata", showLoadedVideo);
+    previewVideo.addEventListener("error", showVideoLoadError);
+  }
+
+  resetPreview();
+
   const closeSidebar = () => {
     body.classList.remove("sidebar-open");
     if (sidebarToggle) {
@@ -279,6 +602,7 @@
       }
       closePanels();
       closeSecondaryPanels();
+      closePreview();
       closeSidebar();
     });
   }

@@ -836,15 +836,6 @@ textarea:focus {
   color: #f87171;
 }
 
-.job-video {
-  display: block;
-  width: 100%;
-  max-height: 420px;
-  margin-top: 0.8rem;
-  border-radius: 0.6rem;
-  background: #000;
-}
-
 .job-error {
   margin: 0.6rem 0 0;
   color: #f87171;
@@ -857,15 +848,234 @@ textarea:focus {
   margin-top: 0.7rem;
 }
 
-.job-download {
+.job-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.job-preview-button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  background: transparent;
   color: var(--accent-blue);
-  font-size: 0.8rem;
+  cursor: pointer;
+  font-size: 0.76rem;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.job-preview-button:hover,
+.job-preview-button:focus-visible {
+  border-color: var(--accent-blue);
+  background: var(--muted-blue);
+}
+
+.job-mock-tag,
+.preview-mock-notice strong {
+  color: #fbbf24;
+}
+
+.job-mock-tag {
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+}
+
+/* Video Preview panel */
+
+.preview-panel {
+  width: 100%;
+  min-width: 0;
+  margin: 1rem auto 0;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  text-align: left;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.preview-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.preview-title:focus {
+  outline: none;
+}
+
+.preview-title:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+.preview-status {
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+  background: rgba(156, 163, 175, 0.12);
+  color: var(--secondary-text);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.preview-status.is-busy {
+  background: var(--muted-blue);
+  color: var(--accent-blue);
+}
+
+.preview-status.is-ready {
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+}
+
+.preview-status.is-failed {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+}
+
+.preview-close {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--secondary-text);
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.preview-close:hover,
+.preview-close:focus-visible {
+  border-color: var(--border);
+  color: var(--main-text);
+}
+
+.preview-mock-notice {
+  margin: 0.6rem 0 0;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--main-text);
+  font-size: 0.76rem;
+}
+
+.preview-stage {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  margin-top: 0.7rem;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  background: #000;
+}
+
+.preview-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  max-width: 26rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.preview-state-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-bottom: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--accent-blue);
+  font-size: 1rem;
+}
+
+.preview-state.is-busy .preview-state-icon {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.preview-state-heading {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.preview-state-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary-text);
+  font-size: 0.78rem;
+}
+
+.preview-retry {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  background: transparent;
+  color: var(--main-text);
+  cursor: pointer;
+  font-size: 0.76rem;
+}
+
+.preview-retry:hover,
+.preview-retry:focus-visible {
+  border-color: var(--accent-blue);
+}
+
+/* Keeps the native aspect ratio and never exceeds the panel or viewport. */
+.preview-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(60vh, 480px);
+  object-fit: contain;
+  background: #000;
+}
+
+.preview-caption {
+  margin: 0.6rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary-text);
+  font-size: 0.76rem;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+
+.preview-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  background: var(--primary-blue);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
   text-decoration: none;
 }
 
-.job-download:hover,
-.job-download:focus-visible {
-  text-decoration: underline;
+.preview-download:hover,
+.preview-download:focus-visible {
+  background: #1d4ed8;
 }
 
 @keyframes pulse {
@@ -1068,5 +1278,6 @@ textarea:focus {
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+    animation: none !important;
   }
 }
