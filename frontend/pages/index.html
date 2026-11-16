@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
   <meta name="description" content="Geetha — controllable AI video generation from text and image prompts.">
   <title>Geetha</title>
   <link rel="stylesheet" href="../css/styles.css">
@@ -36,6 +36,12 @@
           <span class="nav-icon" aria-hidden="true">✦</span>
           <span>Explore</span>
         </button>
+        <button class="sidebar-link" type="button" aria-expanded="false" aria-controls="pinned-chats-panel" data-panel-toggle="pinned-chats-panel">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6zM12 14v7"/></svg>
+          </span>
+          <span>Pinned Chats</span>
+        </button>
         <button class="sidebar-link" type="button" aria-expanded="false" aria-controls="recent-chats-panel" data-panel-toggle="recent-chats-panel">
           <span class="nav-icon" aria-hidden="true">◷</span>
           <span>Recent Chats</span>
@@ -54,10 +60,18 @@
           <button type="button" data-panel-suggestion="Animate the uploaded photo with subtle natural movement and a slow cinematic camera motion.">Animate a photo</button>
           <button type="button" data-panel-suggestion="A futuristic city at night with glowing blue lights, cinematic camera movement, and atmospheric rain.">Explore video styles</button>
         </section>
+        <section class="sidebar-panel" id="pinned-chats-panel" aria-labelledby="pinned-chats-heading" hidden>
+          <h2 id="pinned-chats-heading">Pinned Chats</h2>
+          <p class="panel-note" data-pinned-empty>No pinned chats yet. Use the pin button next to a chat in Recent Chats.</p>
+          <div class="recent-list" data-pinned-list></div>
+          <p class="panel-note pinned-storage-note">Pins are saved in this browser only.</p>
+        </section>
+        <p class="sr-only" role="status" aria-live="polite" data-pin-status></p>
         <section class="sidebar-panel" id="recent-chats-panel" aria-labelledby="recent-chats-heading" hidden>
           <h2 id="recent-chats-heading">Recent Chats</h2>
-          <p class="panel-note" data-history-empty>Your generations in this browser session appear here.</p>
+          <p class="panel-note" data-history-empty>Your chats appear here.</p>
           <div class="recent-list" data-history-list></div>
+          <p class="panel-note chats-storage-note">Chats are saved in this browser only.</p>
         </section>
       </div>
 
@@ -86,56 +100,58 @@
         </a>
       </header>
 
-      <section class="creator-area" aria-labelledby="creator-heading">
-        <div class="creator-content">
-          <p class="eyebrow">AI video studio</p>
-          <h1 id="creator-heading">What do you want to learn today?</h1>
-          <p class="creator-subtitle">Turn an idea or a source image into a video concept.</p>
-
-          <form class="composer-form" data-composer-form>
-            <div class="composer">
-              <label class="sr-only" for="prompt">Describe the video you want to create</label>
-              <button class="composer-plus" type="button" aria-label="Add an image" title="Add an image" data-composer-plus>
-                <span aria-hidden="true">+</span>
-              </button>
-              <textarea id="prompt" name="prompt" rows="1" placeholder="Describe the video you want to create..." aria-describedby="prompt-message" data-prompt></textarea>
-              <div class="composer-tools">
-                <div class="upload-area">
-                  <input class="sr-only" id="image-upload" type="file" accept="image/png,image/jpeg,image/webp" data-image-input>
-                  <label class="icon-button" for="image-upload" aria-label="Geetha image upload" title="Geetha image upload">
-                    <span aria-hidden="true">▧</span>
-                  </label>
-                  <span class="upload-hint">Geetha</span>
-                </div>
-              </div>
-              <button class="generate-button" type="submit" aria-label="Create video demo" title="Create video demo">
-                <span aria-hidden="true">↑</span>
-              </button>
-              <div class="image-preview" data-image-preview hidden>
-                <img src="" alt="Selected source image preview" data-preview-image>
-                <span class="preview-name" data-preview-name></span>
-                <button class="remove-image" type="button" aria-label="Remove selected image" data-remove-image>&times;</button>
-              </div>
+      <!-- Scrollable conversation area. The composer dock below is a sibling, not
+           an overlay, so it can never cover messages or video controls. -->
+      <div class="chat-scroll" data-chat-scroll>
+        <div class="chat-column">
+          <section class="chat-thread" aria-labelledby="creator-heading" data-chat-thread>
+            <div class="empty-state" data-empty-state>
+              <p class="eyebrow">AI video studio</p>
+              <h1 id="creator-heading">What video do you want to create?</h1>
+              <p class="creator-subtitle">Turn an idea or a source image into a video concept.</p>
             </div>
-            <p class="form-message" id="prompt-message" role="status" aria-live="polite" data-form-message></p>
-          </form>
 
-          <div class="creator-tools" aria-label="Additional creation tools">
-            <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="generation-settings" aria-label="Show generation settings" data-secondary-toggle="generation-settings">
-              <span aria-hidden="true">⚙</span>
-              <span>Settings</span>
-            </button>
-            <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="prompt-suggestions" aria-label="Show prompt suggestions" data-secondary-toggle="prompt-suggestions">
-              <span aria-hidden="true">✦</span>
-              <span>Explore</span>
-            </button>
-            <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="video-preview" aria-label="Show video preview" data-preview-toggle>
-              <span aria-hidden="true">▶</span>
-              <span>Video Preview</span>
-            </button>
-          </div>
+            <!-- Submitted prompts and their generation cards (this page view only). -->
+            <div class="chat-messages" data-chat-messages hidden></div>
 
-          <section class="settings-panel" id="generation-settings" aria-label="Generation settings" hidden>
+            <section class="preview-panel" id="video-preview" aria-labelledby="video-preview-heading" data-preview-panel hidden>
+              <div class="preview-header">
+                <h2 class="preview-title" id="video-preview-heading" tabindex="-1">Video Preview</h2>
+                <span class="preview-status is-empty" role="status" aria-live="polite" data-preview-status>No video</span>
+                <button class="preview-close" type="button" aria-label="Close video preview" data-preview-close>
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <p class="preview-mock-notice" data-preview-mock hidden>
+                <strong>Mock test video.</strong> This is a synthetic FFmpeg test pattern from the local mock service, not an AI-generated result.
+              </p>
+              <div class="preview-stage" data-preview-stage>
+                <div class="preview-state" data-preview-state>
+                  <span class="preview-state-icon" aria-hidden="true" data-preview-state-icon>▶</span>
+                  <h3 class="preview-state-heading" data-preview-state-heading>No video to preview yet</h3>
+                  <p class="preview-state-text" data-preview-state-text>Your generated video will appear here when a generation finishes.</p>
+                  <button class="preview-retry" type="button" data-preview-retry hidden>Try again</button>
+                </div>
+                <video class="preview-video" controls playsinline preload="metadata" data-preview-video hidden>
+                  Your browser cannot play this video.
+                </video>
+              </div>
+              <p class="preview-caption" data-preview-caption hidden></p>
+              <div class="preview-actions" data-preview-actions hidden>
+                <a class="preview-download" href="#" download data-preview-download>
+                  <span aria-hidden="true">↓</span>
+                  <span>Download MP4</span>
+                </a>
+              </div>
+            </section>
+          </section>
+        </div>
+      </div>
+
+      <!-- Bottom-anchored composer. Settings and Explore open above it. -->
+      <div class="composer-dock" data-composer-dock>
+        <div class="chat-column">
+          <section class="settings-panel dock-panel" id="generation-settings" aria-label="Generation settings" hidden>
             <fieldset class="setting-group">
               <legend>Aspect ratio</legend>
               <div class="setting-options">
@@ -190,7 +206,7 @@
             </fieldset>
           </section>
 
-          <div class="suggestions" id="prompt-suggestions" aria-label="Prompt suggestions" hidden>
+          <div class="suggestions dock-panel" id="prompt-suggestions" aria-label="Prompt suggestions" hidden>
             <button class="suggestion-card" type="button" data-suggestion="A cinematic aerial shot of a peaceful mountain lake at sunrise, with soft mist and natural lighting.">
               <span class="suggestion-icon" aria-hidden="true">✦</span>
               <span>Create a cinematic scene</span>
@@ -208,80 +224,50 @@
             </button>
           </div>
 
-          <section class="preview-panel" id="video-preview" aria-labelledby="video-preview-heading" data-preview-panel hidden>
-            <div class="preview-header">
-              <h2 class="preview-title" id="video-preview-heading" tabindex="-1">Video Preview</h2>
-              <span class="preview-status is-empty" role="status" aria-live="polite" data-preview-status>No video</span>
-              <button class="preview-close" type="button" aria-label="Close video preview" data-preview-close>
-                <span aria-hidden="true">&times;</span>
+          <form class="composer-form" data-composer-form>
+            <div class="composer">
+              <label class="sr-only" for="prompt">Describe the video you want to create</label>
+              <button class="composer-plus" type="button" aria-label="Add an image" title="Add an image" data-composer-plus>
+                <span aria-hidden="true">+</span>
               </button>
-            </div>
-            <p class="preview-mock-notice" data-preview-mock hidden>
-              <strong>Mock test video.</strong> This is a synthetic FFmpeg test pattern from the local mock service, not an AI-generated result.
-            </p>
-            <div class="preview-stage" data-preview-stage>
-              <div class="preview-state" data-preview-state>
-                <span class="preview-state-icon" aria-hidden="true" data-preview-state-icon>▶</span>
-                <h3 class="preview-state-heading" data-preview-state-heading>No video to preview yet</h3>
-                <p class="preview-state-text" data-preview-state-text>Your generated video will appear here when a generation finishes.</p>
-                <button class="preview-retry" type="button" data-preview-retry hidden>Try again</button>
+              <textarea id="prompt" name="prompt" rows="1" placeholder="Describe the video you want to create..." aria-describedby="prompt-message" data-prompt></textarea>
+              <div class="composer-tools">
+                <div class="upload-area">
+                  <input class="sr-only" id="image-upload" type="file" accept="image/png,image/jpeg,image/webp" data-image-input>
+                  <label class="icon-button" for="image-upload" aria-label="Attach an image" title="Attach an image">
+                    <span aria-hidden="true">▧</span>
+                  </label>
+                </div>
               </div>
-              <video class="preview-video" controls playsinline preload="metadata" data-preview-video hidden>
-                Your browser cannot play this video.
-              </video>
-            </div>
-            <p class="preview-caption" data-preview-caption hidden></p>
-            <div class="preview-actions" data-preview-actions hidden>
-              <a class="preview-download" href="#" download data-preview-download>
-                <span aria-hidden="true">↓</span>
-                <span>Download MP4</span>
-              </a>
-            </div>
-          </section>
-
-          <section class="results" id="my-generations" aria-labelledby="my-generations-heading" data-results>
-            <div class="results-header">
-              <h2 class="results-heading" id="my-generations-heading">My Generations</h2>
-              <span class="results-count" data-results-count hidden></span>
-              <button class="results-refresh" type="button" aria-label="Refresh My Generations" data-results-refresh>
-                <span aria-hidden="true">↻</span>
-                <span>Refresh</span>
+              <button class="generate-button" type="submit" aria-label="Generate video" title="Generate video">
+                <span aria-hidden="true">↑</span>
               </button>
+              <div class="image-preview" data-image-preview hidden>
+                <img src="" alt="Selected source image preview" data-preview-image>
+                <span class="preview-name" data-preview-name></span>
+                <button class="remove-image" type="button" aria-label="Remove selected image" data-remove-image>&times;</button>
+              </div>
             </div>
-            <div class="results-state" role="status" aria-live="polite" data-results-state>
-              <span class="results-state-icon" aria-hidden="true" data-results-state-icon>◷</span>
-              <p class="results-state-text" data-results-state-text>Loading your generations…</p>
-              <button class="results-retry" type="button" data-results-retry hidden>Retry</button>
+            <div class="composer-footer">
+              <p class="form-message" id="prompt-message" role="status" aria-live="polite" data-form-message></p>
+              <div class="creator-tools" aria-label="Additional creation tools">
+                <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="generation-settings" aria-label="Show generation settings" data-secondary-toggle="generation-settings">
+                  <span aria-hidden="true">⚙</span>
+                  <span>Settings</span>
+                </button>
+                <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="prompt-suggestions" aria-label="Show prompt suggestions" data-secondary-toggle="prompt-suggestions">
+                  <span aria-hidden="true">✦</span>
+                  <span>Explore</span>
+                </button>
+                <button class="creator-tool-button" type="button" aria-expanded="false" aria-controls="video-preview" aria-label="Show video preview" data-preview-toggle>
+                  <span aria-hidden="true">▶</span>
+                  <span>Video Preview</span>
+                </button>
+              </div>
             </div>
-            <div class="results-list" role="list" aria-labelledby="my-generations-heading" data-results-list></div>
-            <button class="results-more" type="button" data-results-more hidden>Load more</button>
-          </section>
+          </form>
         </div>
-      </section>
-
-      <section class="how-it-works" id="how-it-works" aria-labelledby="how-it-works-heading">
-        <div class="how-it-works-content">
-          <h2 class="how-it-works-heading" id="how-it-works-heading">How it works</h2>
-          <ol class="how-steps">
-            <li class="how-step">
-              <span class="how-step-number" aria-hidden="true">1</span>
-              <h3 class="how-step-title">Describe or upload</h3>
-              <p class="how-step-text">Type a text prompt, or add a PNG, JPEG, or WebP image (up to 10&nbsp;MB) with the <span aria-hidden="true">+</span><span class="sr-only">add image</span> button.</p>
-            </li>
-            <li class="how-step">
-              <span class="how-step-number" aria-hidden="true">2</span>
-              <h3 class="how-step-title">Choose settings</h3>
-              <p class="how-step-text">Open Settings to pick landscape or portrait at 480p, a length of 2, 3, or 5 seconds, and a visual style.</p>
-            </li>
-            <li class="how-step">
-              <span class="how-step-number" aria-hidden="true">3</span>
-              <h3 class="how-step-title">Generate and preview</h3>
-              <p class="how-step-text">Press send. Follow progress in My Generations, then open Video Preview to watch or download the MP4.</p>
-            </li>
-          </ol>
-          <p class="how-it-works-note">Video generation with Wan&nbsp;2.1 on a Google Colab GPU is still being integrated. Until it is ready, the app creates mock test videos, which are labelled as mock in My Generations and Video Preview.</p>
-        </div>
-      </section>
+      </div>
 
       <span class="future-section-anchor" id="explore" aria-hidden="true"></span>
     </main>

@@ -1,0 +1,24 @@
+# Geetha backend dependencies, pinned to the versions in the project's .venv.
+# Install with: pip install -r requirements.txt
+
+# --- Runtime (required) ---
+Django==5.2.18
+djangorestframework==3.18.3
+# MySQL driver used by django.db.backends.mysql.
+mysqlclient==2.3.0
+# Loads the project-root .env in config/settings.py.
+python-dotenv==1.2.4
+
+# Django's own dependencies, pinned for reproducible installs.
+asgiref==3.12.1
+sqlparse==0.6.0
+# Time-zone data; Django requires it on Windows.
+tzdata==2026.5
+
+# --- Optional: mock AI mode (AI_SERVICE_MODE=mock, the default) ---
+# Supplies an FFmpeg binary when ffmpeg is not on PATH. Not needed in remote mode.
+imageio-ffmpeg==0.6.0
+
+# --- Development / tests ---
+# None. The test suite uses Django's built-in runner:
+#   cd backend && python manage.py test tests

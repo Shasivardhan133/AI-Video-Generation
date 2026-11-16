@@ -11,5 +11,6 @@ def get_client(settings):
             request_timeout=settings.AI_SERVICE_TIMEOUT,
             poll_interval=settings.AI_SERVICE_POLL_INTERVAL,
             max_wait=settings.AI_SERVICE_MAX_WAIT,
+            max_video_bytes=settings.AI_SERVICE_MAX_VIDEO_BYTES,
         )
     return MockClient()

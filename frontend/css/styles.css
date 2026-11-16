@@ -9,6 +9,7 @@
   --border: #263449;
   --focus-ring: rgba(96, 165, 250, 0.65);
   --muted-blue: rgba(37, 99, 235, 0.12);
+  --chat-width: 820px;
 }
 
 * {
@@ -57,9 +58,14 @@ button {
   outline-offset: 3px;
 }
 
+/* The page itself never scrolls: the sidebar and the conversation area scroll
+   on their own, and the composer stays at the bottom of the viewport. dvh
+   follows the mobile browser's visible height (vh is the fallback). */
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -70,7 +76,9 @@ button {
   flex-direction: column;
   width: clamp(300px, 20vw, 340px);
   min-width: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid var(--border);
   padding: 1.25rem 0.9rem 0.9rem;
   background: var(--sidebar);
@@ -264,6 +272,80 @@ button {
   font-size: 0.62rem;
 }
 
+/* Pinned Chats: a chat row is the chat button plus a pin toggle. */
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.recent-row .recent-item {
+  flex: 1 1 auto;
+}
+
+.pin-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.pin-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pin-button:hover,
+.pin-button:focus-visible {
+  background: var(--muted-blue);
+  color: var(--main-text);
+}
+
+.pin-button.is-pinned {
+  color: var(--accent-blue);
+}
+
+.pin-button.is-pinned svg path {
+  fill: currentColor;
+}
+
+.nav-icon svg {
+  display: inline-block;
+  vertical-align: -0.15em;
+}
+
+.sidebar-panel .pinned-storage-note,
+.sidebar-panel .chats-storage-note {
+  margin: 0.55rem 0 0;
+}
+
+/* The conversation that is open in the main area. */
+.recent-item.is-current {
+  background: var(--muted-blue);
+  color: var(--main-text);
+}
+
+/* "Earlier generations": jobs that belong to no conversation in this browser. */
+.recent-group-heading {
+  margin: 0.6rem 0 0.2rem;
+  padding: 0 0.7rem;
+  color: #6b7280;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .recent-copy {
   display: grid;
   min-width: 0;
@@ -359,6 +441,7 @@ button {
   flex-direction: column;
   min-width: 0;
   width: 0;
+  height: 100%;
   background: var(--background);
 }
 
@@ -366,23 +449,64 @@ button {
   display: none;
 }
 
-.creator-area {
+/* Conversation area: the only part of the workspace that scrolls. */
+.chat-scroll {
   display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  min-height: 100vh;
-  padding: 4rem clamp(1rem, 4vw, 3rem);
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
-.creator-content {
+/* Shared width for the conversation and the composer, so they line up. */
+.chat-column {
   width: 100%;
-  max-width: 1000px;
+  max-width: var(--chat-width);
   min-width: 0;
-  margin-top: -3rem;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2rem);
+}
+
+.chat-scroll > .chat-column {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+
+.chat-thread {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-width: 0;
+  padding: 2rem 0 1.25rem;
+}
+
+/* Centred in the free space while the conversation is empty. */
+.empty-state {
+  margin: auto 0;
+  padding: 2rem 0;
   text-align: center;
+}
+
+/* Bottom-anchored composer. A flex sibling of .chat-scroll, so it takes its own
+   space instead of covering the end of the conversation. */
+.composer-dock {
+  flex: 0 0 auto;
+  /* Same scrollbar space as .chat-scroll, so both columns line up exactly. */
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  padding: 0.5rem 0 calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  background: var(--background);
+}
+
+/* Settings and Explore open above the composer and scroll if tall. */
+.dock-panel {
+  max-height: min(45vh, 22rem);
+  max-height: min(45dvh, 22rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .eyebrow {
@@ -411,7 +535,6 @@ h1 {
 
 .composer-form {
   width: 100%;
-  max-width: 1000px;
   min-width: 0;
   margin: 0 auto;
 }
@@ -419,7 +542,7 @@ h1 {
 .composer {
   display: flex;
   align-items: center;
-  min-height: 80px;
+  min-height: 3.75rem;
   gap: 0.65rem;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -433,6 +556,23 @@ h1 {
 .composer:focus-within {
   border-color: rgba(96, 165, 250, 0.65);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2), 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* With an image attached, the preview wraps onto its own line so the prompt
+   keeps its width (the preview takes a full row via flex-basis: 100%). */
+.composer.has-image {
+  flex-wrap: wrap;
+  border-radius: 1.25rem;
+}
+
+/* Locked while the user's own video is generating (see main.js). */
+.composer.is-locked textarea,
+.composer.is-locked .composer-plus,
+.composer.is-locked .icon-button,
+.composer.is-locked .generate-button,
+.composer.is-locked .remove-image {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 textarea {
@@ -515,11 +655,6 @@ textarea:focus {
   color: var(--accent-blue);
 }
 
-.upload-hint {
-  color: #6b7280;
-  font-size: 0.75rem;
-}
-
 .generate-button {
   display: grid;
   width: 2.35rem;
@@ -581,9 +716,20 @@ textarea:focus {
   color: var(--main-text);
 }
 
+/* Status message on the left, Settings / Explore / Video Preview on the right. */
+.composer-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 .form-message {
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 1.3rem;
-  margin: 0.65rem 0 0;
+  margin: 0;
+  overflow-wrap: anywhere;
   color: var(--accent-blue);
   font-size: 0.78rem;
   text-align: left;
@@ -595,10 +741,9 @@ textarea:focus {
 
 .creator-tools {
   display: flex;
+  flex: 0 0 auto;
   justify-content: flex-end;
   gap: 0.5rem;
-  width: 100%;
-  margin-top: 0.7rem;
 }
 
 .creator-tool-button {
@@ -630,11 +775,11 @@ textarea:focus {
   gap: 0.75rem;
   width: 100%;
   min-width: 0;
-  margin: 1rem auto 0;
+  margin: 0 0 0.6rem;
   border: 1px solid var(--border);
   border-radius: 0.8rem;
   padding: 0.75rem;
-  background: rgba(13, 19, 32, 0.72);
+  background: var(--sidebar);
   text-align: left;
 }
 
@@ -707,8 +852,8 @@ textarea:focus {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
   min-width: 0;
-  gap: 0.8rem;
-  margin-top: 1.2rem;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
 }
 
 .suggestion-card {
@@ -720,7 +865,7 @@ textarea:focus {
   border: 1px solid var(--border);
   border-radius: 0.7rem;
   padding: 0.8rem 0.85rem;
-  background: transparent;
+  background: var(--sidebar);
   color: var(--secondary-text);
   cursor: pointer;
   font-size: 0.78rem;
@@ -757,257 +902,8 @@ textarea:focus {
   font-size: 0.72rem;
 }
 
-.results {
-  width: 100%;
-  margin-top: 1.6rem;
-  text-align: left;
-}
-
-.results-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.results-heading {
-  margin: 0;
-  color: var(--main-text);
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.results-count {
-  border-radius: 999px;
-  padding: 0.05rem 0.5rem;
-  background: rgba(156, 163, 175, 0.12);
-  color: var(--secondary-text);
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.results-refresh,
-.results-retry,
-.results-more {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--secondary-text);
-  cursor: pointer;
-  font-size: 0.74rem;
-  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
-}
-
-.results-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-left: auto;
-  padding: 0.3rem 0.7rem;
-}
-
-.results-refresh:hover,
-.results-refresh:focus-visible,
-.results-retry:hover,
-.results-retry:focus-visible,
-.results-more:hover,
-.results-more:focus-visible {
-  border-color: var(--accent-blue);
-  background: var(--muted-blue);
-  color: var(--main-text);
-}
-
-.results-refresh[aria-busy="true"] > span:first-child {
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.results-state {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.75rem;
-  border: 1px dashed var(--border);
-  border-radius: 0.8rem;
-  padding: 0.85rem 0.9rem;
-  color: var(--secondary-text);
-  font-size: 0.82rem;
-}
-
-.results-state.is-error {
-  border-style: solid;
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.06);
-}
-
-.results-state-icon {
-  display: inline-grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--accent-blue);
-  font-size: 0.8rem;
-}
-
-.results-state.is-loading .results-state-icon {
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.results-state.is-error .results-state-icon {
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #f87171;
-}
-
-.results-state-text {
-  flex: 1 1 12rem;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.results-retry {
-  padding: 0.3rem 0.8rem;
-  color: var(--main-text);
-}
-
-.results-list {
-  display: grid;
-  gap: 0.9rem;
-}
-
-.results-more {
-  display: block;
-  margin: 0.9rem auto 0;
-  padding: 0.4rem 1rem;
-}
-
-.results-more:disabled {
-  cursor: progress;
-  opacity: 0.7;
-}
-
-.job-card {
-  border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  padding: 0.9rem;
-  background: var(--surface);
-}
-
-.job-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.job-prompt {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-size: 0.86rem;
-}
-
-.job-meta {
-  margin: 0.25rem 0 0;
-  color: var(--secondary-text);
-  font-size: 0.72rem;
-}
-
-.job-status {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  padding: 0.15rem 0.6rem;
-  background: var(--muted-blue);
-  color: var(--accent-blue);
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.job-status.is-processing::before,
-.job-status.is-queued::before {
-  content: "";
-  display: inline-block;
-  width: 0.45rem;
-  height: 0.45rem;
-  margin-right: 0.35rem;
-  border-radius: 50%;
-  background: currentColor;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.job-status.is-completed {
-  background: rgba(34, 197, 94, 0.14);
-  color: #4ade80;
-}
-
-.job-status.is-failed {
-  background: rgba(239, 68, 68, 0.14);
-  color: #f87171;
-}
-
-.job-status.is-unknown {
-  background: rgba(156, 163, 175, 0.12);
-  color: var(--secondary-text);
-}
-
-.job-copy {
-  min-width: 0;
-}
-
-.job-note {
-  margin: 0.6rem 0 0;
-  color: var(--secondary-text);
-  font-size: 0.8rem;
-}
-
-.job-error {
-  margin: 0.6rem 0 0;
-  color: #f87171;
-  font-size: 0.8rem;
-}
-
-.job-actions {
-  display: flex;
-  gap: 0.6rem;
-  margin-top: 0.7rem;
-}
-
-.job-actions {
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.job-preview-button {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.3rem 0.75rem;
-  background: transparent;
-  color: var(--accent-blue);
-  cursor: pointer;
-  font-size: 0.76rem;
-  transition: border-color 160ms ease, background-color 160ms ease;
-}
-
-.job-preview-button:hover,
-.job-preview-button:focus-visible {
-  border-color: var(--accent-blue);
-  background: var(--muted-blue);
-}
-
-.job-mock-tag,
 .preview-mock-notice strong {
   color: #fbbf24;
-}
-
-.job-mock-tag {
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 999px;
-  padding: 0.15rem 0.55rem;
-  font-size: 0.7rem;
 }
 
 /* Video Preview panel */
@@ -1015,7 +911,8 @@ textarea:focus {
 .preview-panel {
   width: 100%;
   min-width: 0;
-  margin: 1rem auto 0;
+  margin: 1rem 0 0;
+  scroll-margin: 1rem;
   border: 1px solid var(--border);
   border-radius: 0.8rem;
   padding: 0.75rem;
@@ -1211,85 +1108,209 @@ textarea:focus {
   50% { opacity: 1; }
 }
 
-.sidebar-backdrop {
-  display: none;
-}
-
-/* How it works */
-
-.how-it-works {
-  width: 100%;
-  min-width: 0;
-  padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
-}
-
-.how-it-works-content {
-  width: 100%;
-  max-width: 1000px;
-  min-width: 0;
-  margin: 0 auto;
-  border-top: 1px solid var(--border);
-  padding-top: 2.5rem;
-}
-
-.how-it-works-heading {
-  margin: 0;
-  font-size: clamp(1.25rem, 2.4vw, 1.5rem);
-  font-weight: 650;
-  letter-spacing: -0.03em;
-}
-
-.how-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* Chat messages: the user's prompt (right) and its generation card (left). */
+.chat-messages {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  margin: 1.2rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.how-step {
   min-width: 0;
+}
+
+.chat-message {
+  display: flex;
+  min-width: 0;
+}
+
+.chat-message-user {
+  justify-content: flex-end;
+}
+
+.chat-bubble {
+  max-width: min(80%, 36rem);
   border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  padding: 1rem;
+  border-radius: 1.1rem 1.1rem 0.35rem 1.1rem;
+  padding: 0.65rem 0.95rem;
+  background: #1c1c1c;
+  color: var(--main-text);
+  text-align: left;
+}
+
+.chat-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap; /* keeps the prompt's line breaks */
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.chat-attachment {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary-text);
+  font-size: 0.76rem;
+}
+
+.chat-text + .chat-attachment {
+  margin-top: 0.35rem;
+}
+
+/* "Generating video" card. */
+.generation-card {
+  width: min(100%, 24rem);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  padding: 0.85rem 1rem 0.95rem;
   background: var(--surface);
+  text-align: left;
 }
 
-.how-step-number {
-  display: inline-grid;
-  place-items: center;
-  width: 1.8rem;
-  height: 1.8rem;
+.generation-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.generation-spinner {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(96, 165, 250, 0.2);
+  border-top-color: var(--accent-blue);
   border-radius: 50%;
-  background: var(--muted-blue);
-  color: var(--accent-blue);
-  font-size: 0.8rem;
-  font-weight: 700;
+  animation: generation-spin 0.9s linear infinite;
 }
 
-.how-step-title {
-  margin: 0.7rem 0 0.3rem;
-  font-size: 0.95rem;
+.generation-copy {
+  min-width: 0;
+}
+
+.generation-title {
+  margin: 0;
+  color: var(--main-text);
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
-.how-step-text {
+.generation-text {
+  margin: 0.1rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary-text);
+  font-size: 0.8rem;
+}
+
+/* Indeterminate bar: a segment sweeps across; it never shows a percentage. */
+.generation-bar {
+  position: relative;
+  height: 0.3rem;
+  margin-top: 0.8rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.generation-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary-blue), var(--accent-blue));
+  animation: generation-sweep 1.6s ease-in-out infinite;
+}
+
+.generation-card.is-failed {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.generation-card.is-failed .generation-title {
+  color: #f87171;
+}
+
+@keyframes generation-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes generation-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+/* Completed video, inline in the conversation. */
+/* Sized to the video itself, so portrait videos are not letterboxed. */
+.generation-result {
+  width: fit-content;
+  max-width: min(100%, 36rem);
   margin: 0;
-  color: var(--secondary-text);
-  font-size: 0.82rem;
 }
 
-.how-it-works-note {
-  margin: 1rem 0 0;
-  color: var(--secondary-text);
-  font-size: 0.78rem;
+.generation-video {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(60vh, 28rem);
+  max-height: min(60dvh, 28rem);
+  border-radius: 0.8rem;
+  background: #000;
+  object-fit: contain;
 }
 
-@media (max-width: 760px) {
-  .how-steps {
-    grid-template-columns: 1fr;
-  }
+.generation-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+}
+
+.generation-label {
+  min-width: 0;
+  color: var(--secondary-text);
+  font-size: 0.76rem;
+}
+
+.generation-label.is-mock {
+  color: #fbbf24;
+}
+
+.generation-label.is-error {
+  color: #fca5a5;
+}
+
+.generation-download {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  color: var(--main-text);
+  font-size: 0.76rem;
+  text-decoration: none;
+}
+
+.generation-download:hover,
+.generation-download:focus-visible {
+  border-color: var(--accent-blue);
+  background: var(--muted-blue);
+}
+
+/* Cancel on a queued job's loading card; styled like the Download link. */
+.generation-cancel {
+  display: block;
+  margin: 0.75rem 0 0 auto;
+  background: transparent;
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.generation-cancel:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.sidebar-backdrop {
+  display: none;
 }
 
 .future-section-anchor {
@@ -1347,6 +1368,7 @@ textarea:focus {
 
   .mobile-header {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     gap: 0.8rem;
     min-height: 64px;
@@ -1380,17 +1402,12 @@ textarea:focus {
     background: currentColor;
   }
 
-  .creator-area {
-    min-height: calc(100vh - 64px);
-    padding: 3rem 1rem;
+  .chat-thread {
+    padding-top: 1.5rem;
   }
 
   .suggestions {
     grid-template-columns: 1fr;
-  }
-
-  .creator-content {
-    margin-top: -1rem;
   }
 
   .settings-panel {
@@ -1399,7 +1416,14 @@ textarea:focus {
 }
 
 @media (max-width: 560px) {
+  /* Tools take a full row; the status message goes on its own line below. */
+  .composer-footer {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
   .creator-tools {
+    flex: 1 1 100%;
     justify-content: stretch;
   }
 
@@ -1408,9 +1432,12 @@ textarea:focus {
     justify-content: center;
   }
 
-  .creator-area {
-    align-items: flex-start;
-    padding-top: 5rem;
+  .form-message:empty {
+    display: none;
+  }
+
+  .chat-column {
+    padding: 0 0.75rem;
   }
 
   h1 {
@@ -1424,7 +1451,7 @@ textarea:focus {
 
   .composer {
     width: 100%;
-    min-height: 76px;
+    min-height: 3.5rem;
     border-radius: 1.25rem;
     padding: 0.55rem 0.65rem;
     flex-wrap: wrap;
@@ -1438,20 +1465,6 @@ textarea:focus {
     min-height: 2.25rem;
     padding-top: 0.4rem;
     padding-bottom: 0.4rem;
-  }
-
-  .upload-hint {
-    display: inline;
-  }
-
-  .composer-tools {
-    order: 4;
-    flex-basis: auto;
-    margin-left: 2.85rem;
-  }
-
-  .generate-button {
-    order: 3;
   }
 
   .image-preview {

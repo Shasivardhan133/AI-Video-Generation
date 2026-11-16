@@ -1,10 +1,22 @@
 import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from .profiles import IMAGE_TO_VIDEO, TEXT_TO_VIDEO
+
+
+class JobTransitionError(ValueError):
+    """A status change was refused; the stored job was left as it is."""
+
+
+class InvalidJobTransition(JobTransitionError):
+    """The lifecycle does not allow this change (for example completed -> processing)."""
+
+
+class StaleJobState(JobTransitionError):
+    """The stored job changed (or was deleted) after this instance was loaded."""
 
 
 class GenerationJob(models.Model):
@@ -73,20 +85,74 @@ class GenerationJob(models.Model):
     def video_available(self):
         return self.status == self.Status.COMPLETED and bool(self.output_file)
 
+    # Status safeguards. Every status change must start from the status that is
+    # stored at that moment, never from a stale copy in memory:
+    # - transition_to() is one conditional UPDATE (WHERE status = <expected>),
+    #   like the worker's, recovery's, expiry's and cancellation's own updates.
+    # - save() of an existing row that writes `status` first locks the row
+    #   (SELECT ... FOR UPDATE) and refuses to write if the stored status is not
+    #   the one this instance last read or wrote, if the row is gone, or if the
+    #   change is not in TRANSITIONS.
+    # So a stale instance can never revive a cancelled, recovered, completed or
+    # failed job, nor undo another operation's result.
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._persisted_status = instance.__dict__.get('status')
+        return instance
+
+    def refresh_from_db(self, *args, **kwargs):
+        super().refresh_from_db(*args, **kwargs)
+        if 'status' in self.__dict__:
+            self._persisted_status = self.status
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        writes_status = update_fields is None or 'status' in update_fields
+        if self._state.adding or not writes_status:
+            super().save(*args, **kwargs)
+        else:
+            with transaction.atomic(using=kwargs.get('using') or self._state.db):
+                stored = (type(self)._base_manager.using(kwargs.get('using') or self._state.db)
+                          .select_for_update().filter(pk=self.pk).values_list('status', flat=True).first())
+                if stored is None:
+                    raise StaleJobState(f'Job {self.pk} no longer exists; not saved')
+                loaded = getattr(self, '_persisted_status', stored)
+                if stored != loaded:
+                    raise StaleJobState(f'Job {self.pk} is now {stored}, not {loaded}; not saved')
+                if self.status != stored and self.status not in self.TRANSITIONS[stored]:
+                    raise InvalidJobTransition(f'Invalid job transition {stored} -> {self.status}')
+                super().save(*args, **kwargs)
+        self._persisted_status = self.status
+
     def transition_to(self, new_status, **fields):
-        """Move to `new_status`, set timestamps, and save the changed fields."""
-        if new_status not in self.TRANSITIONS[self.status]:
-            raise ValueError(f'Invalid job transition {self.status} -> {new_status}')
-        self.status = new_status
+        """Move to `new_status`, set timestamps, and store the given fields.
+
+        One conditional UPDATE: it applies only if the stored status is still
+        this instance's status. Raises InvalidJobTransition for a change the
+        lifecycle forbids, and StaleJobState if the stored job has moved on (or
+        is gone); the instance is then refreshed, and nothing is written.
+        """
+        expected = self.status
+        if new_status not in self.TRANSITIONS[expected]:
+            raise InvalidJobTransition(f'Invalid job transition {expected} -> {new_status}')
         now = timezone.now()
+        values = {'status': new_status, 'updated_at': now, **fields}
         if new_status == self.Status.PROCESSING:
-            self.started_at = now
+            values['started_at'] = now
         if new_status in (self.Status.COMPLETED, self.Status.FAILED):
-            self.completed_at = now
-        for name, value in fields.items():
+            values['completed_at'] = now
+        updated = type(self)._base_manager.filter(pk=self.pk, status=expected).update(**values)
+        if not updated:
+            try:
+                self.refresh_from_db()
+            except type(self).DoesNotExist:
+                raise StaleJobState(f'Job {self.pk} no longer exists') from None
+            raise StaleJobState(f'Job {self.pk} is {self.status}, not {expected}; {new_status} not applied')
+        for name, value in values.items():
             setattr(self, name, value)
-        update_fields = ['status', 'started_at', 'completed_at', 'updated_at', *fields]
-        self.save(update_fields=update_fields)
+        self._persisted_status = new_status
 
     def fail(self, code, message):
         self.transition_to(self.Status.FAILED, error_code=code, error_message=message[:500])

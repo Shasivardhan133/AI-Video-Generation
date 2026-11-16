@@ -1,5 +1,17 @@
 # Testing plan
 
+## Verification status (21 October 2026)
+
+| Kind | What exists | Runs against |
+|---|---|---|
+| Backend automated tests | `backend/tests/`, 587 tests (2 skipped where the account lacks Windows symlink rights; directory junctions are tested). Covers API validation, ownership, CSRF, rate limits, the job lifecycle and state guards, worker recovery and reconnection, queue timeout, cancellation, video ranges, media storage safety (partial writes, traversal, links leading outside `MEDIA_ROOT`, expired sessions), admin, the media audit, and the remote client. Run with `python manage.py test tests` from `backend/` (last full run: 21 October 2026; it also passes with `--reverse` and `--shuffle`). | A temporary MySQL test database and temporary media folders; the mock client, or a **local fake HTTP service** for the remote client. |
+| Browser tests | **None in this repository.** Earlier headless scenarios (chat UI, CSRF, rate limits, the one-active-job rule, cancellation, expiry) ran from a local scratch harness that is not part of the repository, and they have not been re-run against the current frontend. A manual browser checklist is in [handoff.md](handoff.md#manual-browser-check). | Django's test server in mock mode. |
+| Coverage | **Not measured.** No coverage tool is installed. | — |
+| Known test limitations | Some lease and deadline tests use short timings (0.05–0.4 s) and could fail on a heavily loaded machine. Some concurrency tests cannot tell a working lock from requests that happened to run one after another. | — |
+| Real AI service | **None.** The Colab service does not exist yet, and no Wan 2.1 profile has been run on the T4. | — |
+
+So every passing test so far uses the mock client or a fake service. Nothing here shows that real generation works. The AI service, end-to-end and phase 7–9 criteria below are still open.
+
 ## Frontend testing
 
 - Verify prompt, image, and settings validation before submission.

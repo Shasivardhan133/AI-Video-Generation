@@ -18,6 +18,9 @@ env/
 
 # Django/local development
 db.sqlite3
+*.sqlite3
+*.sqlite
+*.db
 staticfiles/
 
 # Generated and potentially large media
@@ -39,6 +42,15 @@ media/outputs/*
 *.pth
 *.onnx
 .ipynb_checkpoints/
+
+# Logs, database dumps, and temporary files
+*.log
+*.sql
+*.sql.gz
+*.dump
+*.bak
+*.tmp
+*.temp
 
 # Editor and operating-system files
 .vscode/
